@@ -135,7 +135,7 @@ ERROR:  relation "t2" does not exist
 LINE 1: INSERT INTO t2(c1) VALUES(4);
                     ^
 ```
-На самом деле, таблица `t2` никуда не делась из схемы `public`, но без права `USAGE`  пользователь `testread` ничего не видит:
+На самом деле таблица `t2` никуда не делась из схемы `public`, но без права `USAGE`  пользователь `testread` ничего не видит:
 ```
 Lesson 04=> \dt
 Did not find any relations.
