@@ -73,3 +73,5 @@ $ psql -d 'HomeWork 09 Restored' -c 'SELECT * FROM backup_02 ORDER BY id LIMIT 1
 (10 rows)
 
 ```
+
+#### That's all, folks!
