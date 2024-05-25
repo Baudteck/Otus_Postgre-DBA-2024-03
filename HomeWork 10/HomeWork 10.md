@@ -1,8 +1,8 @@
 ### Домашнее задание к уроку "Репликация"
 
-Ввиду отсутствия возможности использования нескольких виртуальных машин, это ДЗ было выполнено на одном сервере. Имитация использования виртуальных машин обеспечивалась путём создания нескольких кластеров и использованием различающихя имён баз данных в них.
+Ввиду отсутствия возможности использования нескольких виртуальных машин, это ДЗ было выполнено на одном сервере. Имитация применения виртуальных машин обеспечивалась путём создания нескольких кластеров и использованием различающихся имён баз данных на них.
 
-1. Создаём первый кластер: `pg_createcluster 15 host_01`. Поскольку все ранее созданные базы на этом сервере были предварительно удалены, то доступ к вновь созданному кластеру осуществляется по стандартному порту 5432. Подключаемся, создаём базу `"HomeWork 10 Host 01"`, а в ней - две таблицы `test1` и `test2` схожей структуры:
+1. Создаём первый кластер: `pg_createcluster 15 host_01`. Поскольку все ранее созданные на этом сервере базы были предварительно удалены, то доступ к вновь созданному кластеру осуществляется по стандартному порту 5432. Подключаемся, создаём базу `"HomeWork 10 Host 01"`, а в ней - две таблицы `test1` и `test2` схожей структуры:
 ```
 CREATE TABLE test1(id int, str text);
 CREATE TABLE test2(LIKE test1);
@@ -13,21 +13,20 @@ CREATE TABLE test2(LIKE test1);
 WARNING:  wal_level is insufficient to publish logical changes
 HINT:  Set wal_level to "logical" before creating subscriptions.
 ```
-Меняем параметр `wal_level` на требуемый и перезапускаем кластер. Подписаться на публикацию таблицы `table2` со второй машины мы не можем, так как ВМ №2 (она же - второй кластер) ещё не создана. Приступим же к этому.
+Меняем параметр `wal_level` на требуемый и перезапускаем кластер. Подписаться на публикацию таблицы `test2` со второй машины мы не можем, ввиду отсутствия таковой. Приступим же к её созданию.
 
-2. `"pg_createcluster 15 host_02"`. Сразу меняем значение `wal_level` в конфиге и запускам кластер. Поскольку порт 5432 уже занят, на вторую "виртуалку" мы будем ходить по порту 5433. Подключаемся, создаём базу, таблицы и наполняем одну из них:
+2. Выполняем команду`"pg_createcluster 15 host_02"`. Сразу же меняем значение `wal_level` в конфиге и запускам кластер. Поскольку порт 5432 уже занят, на вторую "виртуалку" мы будем ходить по порту 5433. Подключаемся, создаём базу, таблицы и наполняем одну из них:
 ```
 CREATE DATABASE "HomeWork 10 Host 02";
 CREATE TABLE test1(id int, str text);
 CREATE TABLE test2(LIKE test1);
 INSERT INTO test2(id, str) SELECT val, concat('String ', val, ' on host 02') FROM generate_series (1,10) val;
 ```
-Создаём публикацию: `CREATE PUBLICATION publ_test2 FOR TABLE test2;`. Пытаясь подписаться на публикаюцию таблицы `test1` на первой виртуалке, осознаём, что для учётки `postgres` не задан пароль. В связи с этим идём на беспрецедентное нарушение правил безопасности: в `pg_hba.conf`прописываем пользователю `postgres` разрешение подключаться без пароля в пределах локальной сети, добавив вот такую строчку: `"host    all             postgres         127.0.0.1/32           trust"`. Делаем это для обоих кластеров, после чего оба же и перезапускаем для применения изменений.
+Создаём публикацию: `CREATE PUBLICATION publ_test2 FOR TABLE test2;`. Пытаясь подписаться на публикацию таблицы `test1` на первой виртуалке, осознаём, что для учётки `postgres` не задан пароль. В связи с этим пойдём на беспрецедентное нарушение правил безопасности: в `pg_hba.conf`прописываем пользователю `postgres` разрешение подключаться без пароля в пределах локальной сети, добавив вот такую строчку: `"host    all             postgres         127.0.0.1/32           trust"`. Делаем это для обоих кластеров, после чего оба же и перезапускаем для применения изменений.
 
 3. Вновь подключаемся к базе на второй машине и создаём подписку на `test1`:
 ```
-HomeWork 10 Host 02=# CREATE SUBSCRIPTION subs_test1 CONNECTION 'host=127.0.0.1 port=5432 user=postgres dbname=''HomeWork 10 Host 01''' PUBLICATION publ_test
-1;
+HomeWork 10 Host 02=# CREATE SUBSCRIPTION subs_test1 CONNECTION 'host=127.0.0.1 port=5432 user=postgres dbname=''HomeWork 10 Host 01''' PUBLICATION publ_test1;
 NOTICE:  created replication slot "subs_test1" on publisher
 CREATE SUBSCRIPTION
 HomeWork 10 Host 02=# SELECT * FROM test1;
@@ -54,8 +53,7 @@ HomeWork 10 Host 01=# SELECT * FROM test2;
  id | str
 ----+-----
 (0 rows)
-HomeWork 10 Host 01=# CREATE SUBSCRIPTION subs_test2 CONNECTION 'host=127.0.0.1 port=5433 user=postgres dbname=''HomeWork 10 Host 02''' PUBLICATION publ_test
-2;
+HomeWork 10 Host 01=# CREATE SUBSCRIPTION subs_test2 CONNECTION 'host=127.0.0.1 port=5433 user=postgres dbname=''HomeWork 10 Host 02''' PUBLICATION publ_test2;
 NOTICE:  created replication slot "subs_test2" on publisher
 CREATE SUBSCRIPTION
 HomeWork 10 Host 01=# SELECT * FROM test2;
@@ -208,9 +206,9 @@ drwxr-x--- 11 postgres postgres 4096 May 25 16:56 ../
 -rw-rw----  1 postgres postgres   96 May 25 16:56 3298.dat.gz
 -rw-rw----  1 postgres postgres 2442 May 25 16:56 toc.dat
 ```
-Резервная копия базы создана.
+Резервная копия базы создана успешно.
 
-7. Займёмся горячим реплицированием. Создадим очередной кластер (a la виртуальная машина): `"pg_createcluster 15 host_04"`. Параметры этого кластера менять не надо и запускать сейчас тоже, а вот в `pg_hba.conf` третьей машины надо указать возможность подключения к псевдобазе `replication` без пароля: `"host    replication     postgres             127.0.0.1/32       trust"`, после чего следует перезапустить кластер. Теперь мы удалим директорию с базой 4 кластера: `rm -rf 15/host_04` и с помощью `pg_basebackup` создадим копию третьей ВМ: 
+7. Займёмся горячим реплицированием. Создадим очередной кластер (à la виртуальная машина): `"pg_createcluster 15 host_04"`. Параметры этого кластера менять не надо и запускать сейчас тоже, а вот в `pg_hba.conf` третьей машины надо указать возможность подключения к псевдобазе `replication` без пароля: `"host    replication     postgres             127.0.0.1/32       trust"`, после чего следует перезапустить кластер. Теперь удалим директорию с базой 4 кластера: `rm -rf 15/host_04` и с помощью `pg_basebackup` создадим копию третьей ВМ: 
 ```
 $ pg_basebackup -p 5434 -X stream -c fast -P -v -R -D 15/host_04
 pg_basebackup: initiating base backup, waiting for checkpoint to complete
