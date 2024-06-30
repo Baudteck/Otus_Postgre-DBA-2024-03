@@ -252,7 +252,7 @@ SELECT s.first_name, s.last_name, a.address, c.city, st.country FROM staff s JOI
  Jon        | Stephens  | 1411 Lillydale Drive | Woodridge  | Australia
 (2 rows)
 ```
-Если же мы теперь добавим модификаторы `LEFT` и `RIGHT`, то в итоге получим список всех стран, слегка "разбавленный" адресами персонала:
+Если же мы теперь добавим модификаторы `LEFT` и `RIGHT`, то в итоге получим список стран c редкими вкраплениями основной информации:
 ```
 SELECT s.first_name, s.last_name, a.address, c.city, st.country FROM staff s INNER JOIN address a USING (address_id) LEFT JOIN city c USING (city_id) RIGHT JOIN country st USING (country_id);
  first_name | last_name |       address        |    city    |                country
