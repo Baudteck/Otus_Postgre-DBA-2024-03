@@ -242,3 +242,55 @@ Triggers:
 `SELECT s.relname, c.reltuples::bigint reltuples, s.n_dead_tup FROM pg_stat_user_tables s JOIN pg_class c ON s.relid=c.oid WHERE s.schemaname='public' ORDER BY s.n_dead_tup  DESC;`
 * запросы, которые дольше всего бездействуют:\
 `SELECT pid, usename, client_addr, state, now()-state_change time_pass, wait_event, wait_event_type, regexp_replace(query,'\s+',' ','g') query,backend_type from pg_stat_activity where state != 'active' ORDER BY time_pass DESC;`
+
+8. Добавим запрос, комбинирующий различные виды соединений. Используя таблицу `staff` в качестве основной, узнаем полные адреса проживания сотрудников. Для начала посмотрим, что выведет нормальный запрос: 
+```
+SELECT s.first_name, s.last_name, a.address, c.city, st.country FROM staff s JOIN address a USING (address_id) JOIN city c USING (city_id) JOIN country st USING (country_id);
+ first_name | last_name |       address        |    city    |  country
+------------+-----------+----------------------+------------+-----------
+ Mike       | Hillyer   | 23 Workhaven Lane    | Lethbridge | Canada
+ Jon        | Stephens  | 1411 Lillydale Drive | Woodridge  | Australia
+(2 rows)
+```
+Если же мы теперь добавим модификаторы `LEFT` и `RIGHT`, то в итоге получим список всех стран, слегка "разбавленный" адресами персонала:
+```
+SELECT s.first_name, s.last_name, a.address, c.city, st.country FROM staff s INNER JOIN address a USING (address_id) LEFT JOIN city c USING (city_id) RIGHT JOIN country st USING (country_id);
+ first_name | last_name |       address        |    city    |                country
+------------+-----------+----------------------+------------+---------------------------------------
+            |           |                      |            | Afghanistan
+            |           |                      |            | Algeria
+            |           |                      |            | American Samoa
+            |           |                      |            | Angola
+            |           |                      |            | Anguilla
+            |           |                      |            | Argentina
+            |           |                      |            | Armenia
+ Jon        | Stephens  | 1411 Lillydale Drive | Woodridge  | Australia
+            |           |                      |            | Austria
+            |           |                      |            | Azerbaijan
+            |           |                      |            | Bahrain
+            |           |                      |            | Bangladesh
+            |           |                      |            | Belarus
+            |           |                      |            | Bolivia
+            |           |                      |            | Brazil
+            |           |                      |            | Brunei
+            |           |                      |            | Bulgaria
+            |           |                      |            | Cambodia
+            |           |                      |            | Cameroon
+ Mike       | Hillyer   | 23 Workhaven Lane    | Lethbridge | Canada
+            |           |                      |            | Chad
+            |           |                      |            | Chile
+            |           |                      |            | China
+            |           |                      |            | Colombia
+            |           |                      |            | Congo, The Democratic Republic of the
+            |           |                      |            | Czech Republic
+            |           |                      |            | Dominican Republic
+...
+            |           |                      |            | Vietnam
+            |           |                      |            | Virgin Islands, U.S.
+            |           |                      |            | Yemen
+            |           |                      |            | Yugoslavia
+            |           |                      |            | Zambia
+            |           |                      |            | Швамбрания
+            |           |                      |            | Атлантида
+(111 rows)
+```
